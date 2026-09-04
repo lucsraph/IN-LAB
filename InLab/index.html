@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFID Inventory Management System</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:   #1a56db;
+    --success:   #16a34a;
+    --warning:   #d97706;
+    --danger:    #dc2626;
+    --info:      #0891b2;
+    --bg:        #f1f5f9;
+    --card:      #ffffff;
+    --border:    #e2e8f0;
+    --text:      #1e293b;
+    --muted:     #64748b;
+    --sidebar-w: 240px;
+  }
+
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar-w); background: #0f172a; color: #cbd5e1;
+    display: flex; flex-direction: column; position: fixed; height: 100vh;
+    overflow-y: auto; z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 24px 20px 16px; border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sidebar-logo .logo-icon {
+    width: 38px; height: 38px; background: var(--primary); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .sidebar-logo h2 { font-size: 14px; font-weight: 700; color: #f8fafc; line-height: 1.3; }
+  .sidebar-logo small { font-size: 11px; color: #64748b; }
+
+  .nav-section { padding: 16px 12px 8px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1px; color: #475569; font-weight: 600; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    margin: 2px 8px; border-radius: 8px; cursor: pointer; font-size: 14px;
+    transition: all .15s; color: #94a3b8; text-decoration: none;
+  }
+  .nav-item:hover, .nav-item.active { background: #1e293b; color: #f8fafc; }
+  .nav-item.active { color: #60a5fa; }
+  .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+
+  .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid #1e293b; font-size: 12px; color: #475569; }
+
+  /* ── Main Content ── */
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+
+  .topbar {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar h1 { font-size: 20px; font-weight: 700; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-green  { background: #dcfce7; color: #15803d; }
+  .badge-red    { background: #fee2e2; color: #b91c1c; }
+  .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+  .badge-yellow { background: #fef9c3; color: #a16207; }
+
+  .content { padding: 28px; flex: 1; }
+
+  /* ── Stat Cards ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; display: flex; align-items: center; gap: 16px;
+  }
+  .stat-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .stat-icon.green  { background: #dcfce7; }
+  .stat-icon.red    { background: #fee2e2; }
+  .stat-icon.blue   { background: #dbeafe; }
+  .stat-icon.yellow { background: #fef9c3; }
+  .stat-value { font-size: 28px; font-weight: 800; line-height: 1; }
+  .stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; margin-bottom: 24px;
+  }
+  .card-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: 700; font-size: 15px;
+  }
+  .card-body { padding: 20px; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    background: #f8fafc; padding: 10px 14px; text-align: left;
+    font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #f8fafc; }
+
+  /* ── Status Pills ── */
+  .status-pill {
+    padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block;
+  }
+  .status-available { background: #dcfce7; color: #15803d; }
+  .status-borrowed  { background: #dbeafe; color: #1d4ed8; }
+  .status-overdue   { background: #fee2e2; color: #b91c1c; }
+  .status-maintenance { background: #fef9c3; color: #a16207; }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-danger  { background: var(--danger);  color: #fff; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: none; align-items: center; justify-content: center; z-index: 200;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px; padding: 28px; width: 480px;
+    max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  }
+  .modal h3 { font-size: 18px; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 14px; outline: none; transition: border-color .15s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+  /* ── Live Feed ── */
+  .feed-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .feed-dot.borrow { background: #16a34a; }
+  .feed-dot.return { background: #1d4ed8; }
+  .feed-dot.error  { background: #dc2626; }
+  .feed-text { font-size: 13px; }
+  .feed-time { font-size: 11px; color: var(--muted); }
+
+  /* ── LED Indicator ── */
+  .led-panel { display: flex; gap: 16px; align-items: center; }
+  .led { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(0,0,0,.15); }
+  .led.green  { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .led.blue   { background: #3b82f6; box-shadow: 0 0 8px #3b82f6; }
+  .led.red    { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+  .led.off    { background: #374151; box-shadow: none; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab {
+    padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
+    cursor: pointer; font-size: 14px; background: var(--card); transition: all .15s;
+  }
+  .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  /* ── Search ── */
+  .search-bar {
+    padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; width: 240px; outline: none;
+  }
+  .search-bar:focus { border-color: var(--primary); }
+
+  /* ── Two column layout ── */
+  .two-col { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 1100px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .two-col { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .main { margin-left: 0; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">📦</div>
+    <div>
+      <h2>RFID Inventory</h2>
+      <small>Management System</small>
+    </div>
+  </div>
+
+  <div class="nav-section">Main</div>
+  <a class="nav-item active" onclick="showPage('dashboard')">
+    <span class="icon">🏠</span> Dashboard
+  </a>
+  <a class="nav-item" onclick="showPage('inventory')">
+    <span class="icon">📋</span> Inventory
+  </a>
+  <a class="nav-item" onclick="showPage('transactions')">
+    <span class="icon">🔄</span> Transactions
+  </a>
+  <a class="nav-item" onclick="showPage('users')">
+    <span class="icon">👥</span> Borrowers
+  </a>
+
+  <div class="nav-section">Reports</div>
+  <a class="nav-item" onclick="showPage('logs')">
+    <span class="icon">📊</span> Activity Logs
+  </a>
+  <a class="nav-item" onclick="showPage('overdue')">
+    <span class="icon">⚠️</span> Overdue Items
+  </a>
+
+  <div class="nav-section">Settings</div>
+  <a class="nav-item" onclick="showPage('rfid-register')">
+    <span class="icon">📡</span> Register RFID
+  </a>
+
+  <div class="sidebar-footer">
+    <div>🖥️ XAMPP Server</div>
+    <div id="server-status" style="color:#22c55e; margin-top:4px;">● Connected</div>
+  </div>
+</nav>
+
+<!-- ══ MAIN CONTENT ══ -->
+<div class="main">
+  <div class="topbar">
+    <h1 id="page-title">Dashboard</h1>
+    <div class="topbar-right">
+      <div class="led-panel" title="LED Status Indicators">
+        <span style="font-size:12px; color:#64748b;">LEDs:</span>
+        <div class="led off" id="led-green" title="Green: Borrow"></div>
+        <div class="led off" id="led-blue"  title="Blue: Return"></div>
+        <div class="led off" id="led-red"   title="Red: Error"></div>
+      </div>
+      <span id="datetime" style="font-size:13px; color:#64748b;"></span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── DASHBOARD PAGE ── -->
+    <div id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon green">📦</div>
+          <div><div class="stat-value" id="stat-total">12</div><div class="stat-label">Total Items</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">🔄</div>
+          <div><div class="stat-value" id="stat-borrowed">4</div><div class="stat-label">Currently Borrowed</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✅</div>
+          <div><div class="stat-value" id="stat-available">7</div><div class="stat-label">Available</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">⚠️</div>
+          <div><div class="stat-value" id="stat-overdue">1</div><div class="stat-label">Overdue</div></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- Recent Transactions -->
+        <div class="card">
+          <div class="card-header">
+            📋 Recent Transactions
+            <button class="btn btn-outline btn-sm" onclick="loadTransactions()">🔄 Refresh</button>
+          </div>
+          <div class="card-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Action</th>
+                    <th>Borrower</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-txn">
+                  <tr><td colspan="5" style="text-align:center; color:#64748b; padding:24px;">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Feed -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              📡 Live RFID Feed
+              <span id="feed-status" style="font-size:11px; font-weight:400; padding:3px 8px; border-radius:20px; background:#dcfce7; color:#15803d;">● Live</span>
+            </div>
+            <div class="card-body" id="live-feed" style="max-height:260px; overflow-y:auto;">
+              <div style="text-align:center; color:#64748b; padding:24px; font-size:13px;">Loading feed...</div>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="card">
+            <div class="card-header">📊 Today's Summary</div>
+            <div class="card-body">
+              <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                <span>Total Borrows</span><span class="badge badge-green" id="today-borrows">8</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                <span>Total Returns</span><span class="badge badge-blue" id="today-returns">6</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span>Failed Scans</span><span class="badge badge-red" id="today-errors">2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INVENTORY PAGE ── -->
+    <div id="page-inventory" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          📋 Inventory Items
+          <div style="display:flex;gap:10px;">
+            <input class="search-bar" placeholder="🔍 Search items..." id="inv-search" oninput="filterInventory()">
+            <button class="btn btn-primary" onclick="openModal('modal-add-item')">＋ Add Item</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>RFID UID</th>
+                  <th>Item Name / Unit Label</th>
+                  <th>Category</th>
+                  <th>Available / Total</th>
+                  <th>Location</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-table">
+                <tr>
+                  <td>A1:B2:C3:D4</td>
+                  <td>Arduino Uno Kit</td>
+                  <td>Electronics</td>
+                  <td>5</td>
+                  <td>Cabinet A</td>
+                  <td><span class="status-pill status-available">Available</span></td>
+                  <td><button class="btn btn-outline btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>E5:F6:G7:H8</td>
+                  <td>Oscilloscope</td>
+                  <td>Instruments</td>
+                  <td>2</td>
+                  <td>Lab Bench 1</td>
+                  <td><span class="status-pill status-borrowed">Borrowed</span></td>
+                  <td><button class="btn btn-outline btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>I9:J0:K1:L2</td>
+                  <td>Soldering Iron</td>
+                  <td>Tools</td>
+                  <td>3</td>
+                  <td>Workbench</td>
+                  <td><span class="status-pill status-available">Available</span></td>
+                  <td><button class="btn btn-outline btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>M3:N4:O5:P6</td>
+                  <td>Multimeter</td>
+                  <td>Instruments</td>
+                  <td>4</td>
+                  <td>Cabinet B</td>
+                  <td><span class="status-pill status-available">Available</span></td>
+                  <td><button class="btn btn-outline btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>Q7:R8:S9:T0</td>
+                  <td>Raspberry Pi 4 Kit</td>
+                  <td>Electronics</td>
+                  <td>3</td>
+                  <td>Cabinet A</td>
+                  <td><span class="status-pill status-overdue">Overdue</span></td>
+                  <td><button class="btn btn-outline btn-sm">Edit</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TRANSACTIONS PAGE ── -->
+    <div id="page-transactions" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <div class="tabs" style="margin:0;">
+          <div class="tab active" onclick="setTab(this,'all')">All</div>
+          <div class="tab" onclick="setTab(this,'active')">Active Borrows</div>
+          <div class="tab" onclick="setTab(this,'completed')">Completed</div>
+          <div class="tab" onclick="setTab(this,'overdue')">Overdue</div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input class="search-bar" id="txn-search" placeholder="🔍 Search..." oninput="filterTransactions()" style="width:180px;">
+          <button class="btn btn-outline btn-sm" onclick="loadTransactions()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          🔄 Transaction History
+          <span id="txn-count" style="font-size:12px; color:#64748b; font-weight:400;"></span>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item</th>
+                  <th>Borrower</th>
+                  <th>Action</th>
+                  <th>Borrow Date</th>
+                  <th>Due Date</th>
+                  <th>Return Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="txn-table">
+                <tr><td colspan="8" style="text-align:center; color:#64748b; padding:32px;">Loading transactions...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── USERS PAGE ── -->
+    <div id="page-users" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          👥 Registered Borrowers
+          <button class="btn btn-primary" onclick="openModal('modal-add-user')">＋ Add Borrower</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>RFID UID</th><th>Name</th><th>ID No.</th><th>Department</th><th>Role</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="users-table">
+                <tr>
+                  <td>U1:V2:W3:X4</td><td>Juan Dela Cruz</td><td>2021-00001</td>
+                  <td>Computer Engineering</td><td><span class="badge badge-blue">Student</span></td>
+                  <td><button class="btn btn-outline btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>Y5:Z6:A7:B8</td><td>Maria Santos</td><td>2021-00002</td>
+                  <td>Electronics Engineering</td><td><span class="badge badge-blue">Student</span></td>
+                  <td><button class="btn btn-outline btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>C9:D0:E1:F2</td><td>Pedro Reyes</td><td>2022-00015</td>
+                  <td>Computer Science</td><td><span class="badge badge-blue">Student</span></td>
+                  <td><button class="btn btn-outline btn-sm">Edit</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LOGS PAGE ── -->
+    <div id="page-logs" style="display:none;">
+      <div class="card">
+        <div class="card-header">📊 System Activity Logs</div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Time</th><th>RFID UID</th><th>Action</th><th>Result</th><th>Message</th><th>IP</th></tr>
+              </thead>
+              <tbody id="logs-table">
+                <tr><td colspan="6" style="text-align:center; color:#64748b; padding:32px;">Loading logs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── OVERDUE PAGE ── -->
+    <div id="page-overdue" style="display:none;">
+      <div class="card">
+        <div class="card-header">⚠️ Overdue Items</div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Item</th><th>Borrower</th><th>Borrow Date</th><th>Due Date</th><th>Days Overdue</th><th>Action</th></tr>
+              </thead>
+              <tbody id="overdue-table">
+                <tr><td colspan="6" style="text-align:center; color:#64748b; padding:32px;">Loading overdue items...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RFID REGISTER PAGE ── -->
+    <div id="page-rfid-register" style="display:none;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:960px; margin:0 auto;">
+
+        <!-- Left: UID Scanner Panel -->
+        <div class="card">
+          <div class="card-header">
+            📡 RFID UID Scanner
+            <span id="scan-live-dot" style="font-size:11px;padding:3px 8px;border-radius:20px;background:#fee2e2;color:#b91c1c;font-weight:400;">● Waiting</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
+              Scan a card on the ESP32 reader — the UID will appear below automatically. Or type it manually.
+            </p>
+            <div class="form-group">
+              <label style="font-weight:700;">Detected UID</label>
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="reg-uid" placeholder="Waiting for scan..." 
+                  style="font-family:monospace;font-size:16px;letter-spacing:2px;flex:1;background:#f8fafc;"
+                  oninput="onUidInput()">
+                <button class="btn btn-outline" onclick="clearRegForm()" title="Clear">✕</button>
+              </div>
+            </div>
+
+            <!-- UID status indicator -->
+            <div id="uid-check-msg" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px;margin-top:8px;"></div>
+
+            <!-- Register As toggle -->
+            <div class="form-group" style="margin-top:16px;">
+              <label style="font-weight:700;">Register As</label>
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <button id="reg-as-item" class="btn btn-primary" style="flex:1;" onclick="setRegType('item')">📦 Inventory Item</button>
+                <button id="reg-as-user" class="btn btn-outline" style="flex:1;" onclick="setRegType('user')">👤 Borrower / User</button>
+              </div>
+            </div>
+            <input type="hidden" id="reg-type" value="item">
+          </div>
+        </div>
+
+        <!-- Right: Details Form (changes based on type) -->
+        <div class="card">
+          <div class="card-header" id="reg-form-title">📦 Item Details</div>
+          <div class="card-body">
+
+            <!-- ITEM fields -->
+            <div id="reg-item-fields">
+              <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;">
+                💡 Adding a unit to an <strong>existing item type</strong>? Select it below. Or create a brand-new type.
+              </div>
+              <div class="form-group">
+                <label>Add to Existing Type <span style="color:#64748b;font-weight:400;">(or leave blank for new)</span></label>
+                <select id="reg-existing-type" onchange="onExistingTypeChange()">
+                  <option value="">— Create new item type —</option>
+                </select>
+              </div>
+              <div id="reg-new-type-fields">
+                <div class="form-group">
+                  <label>Item Name <span style="color:#dc2626;">*</span></label>
+                  <input type="text" id="reg-item-name" placeholder="e.g. Multimeter">
+                </div>
+                <div class="form-group">
+                  <label>Category</label>
+                  <select id="reg-item-category">
+                    <option>Electronics</option><option>Instruments</option>
+                    <option>Tools</option><option>Books</option><option>Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Location</label>
+                  <input type="text" id="reg-item-location" placeholder="e.g. Cabinet A">
+                </div>
+                <div class="form-group">
+                  <label>Description</label>
+                  <input type="text" id="reg-item-desc" placeholder="Optional">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Unit Label <span style="color:#64748b;font-weight:400;">(auto-generated if blank)</span></label>
+                <input type="text" id="reg-unit-label" placeholder="e.g. Multimeter #3 or S/N 0042">
+              </div>
+            </div>
+
+            <!-- USER fields -->
+            <div id="reg-user-fields" style="display:none;">
+              <div class="form-group">
+                <label>Full Name <span style="color:#dc2626;">*</span></label>
+                <input type="text" id="reg-user-name" placeholder="Juan Dela Cruz">
+              </div>
+              <div class="form-group">
+                <label>ID Number</label>
+                <input type="text" id="reg-user-id" placeholder="2024-00001">
+              </div>
+              <div class="form-group">
+                <label>Department</label>
+                <input type="text" id="reg-user-dept" placeholder="Computer Engineering">
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="reg-user-email" placeholder="student@school.edu">
+              </div>
+              <div class="form-group">
+                <label>Role</label>
+                <select id="reg-user-role">
+                  <option value="student">Student</option>
+                  <option value="staff">Staff</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Feedback message -->
+            <div id="reg-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;"></div>
+
+            <!-- Submit -->
+            <button class="btn btn-primary" id="reg-save-btn" style="width:100%;padding:12px;" onclick="submitRegister()">
+              💾 Register RFID Card
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Recently Registered -->
+      <div class="card" style="max-width:960px;margin:20px auto 0;">
+        <div class="card-header">✅ Recently Registered Cards</div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Time</th><th>UID</th><th>Registered As</th><th>Name / Label</th><th>Type</th></tr>
+              </thead>
+              <tbody id="reg-history"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ══ MODALS ══ -->
+<!-- Add Item Type Modal -->
+<div class="modal-overlay" id="modal-add-item">
+  <div class="modal">
+    <h3>➕ Add New Item Type</h3>
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;">
+      💡 An <strong>Item Type</strong> is the shared definition (e.g. "Multimeter"). Add individual RFID units to it using <strong>＋ Unit</strong>.
+    </div>
+    <div class="form-group">
+      <label>Item Name <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="add-name" placeholder="e.g. Arduino Uno Kit">
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <select id="add-category">
+        <option>Electronics</option><option>Instruments</option>
+        <option>Tools</option><option>Books</option><option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Storage Location</label>
+      <input type="text" id="add-location" placeholder="e.g. Cabinet A">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="add-desc" rows="2" placeholder="Optional..."></textarea>
+    </div>
+    <div style="border-top:1px dashed #e2e8f0;margin:12px 0;padding-top:12px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">First RFID Unit <span style="color:#64748b;font-weight:400;">(optional)</span></div>
+      <div class="form-group">
+        <label>RFID UID</label>
+        <input type="text" id="add-uid" placeholder="e.g. A1:B2:C3:D4" style="font-family:monospace;">
+      </div>
+      <div class="form-group">
+        <label>Unit Label</label>
+        <input type="text" id="add-item-label" placeholder="e.g. Arduino #1">
+      </div>
+    </div>
+    <div id="add-item-msg" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-item')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddItem()">💾 Save Item Type</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Unit Modal -->
+<div class="modal-overlay" id="modal-add-unit">
+  <div class="modal">
+    <h3>➕ Add Unit to Stack</h3>
+    <input type="hidden" id="add-unit-type-id">
+    <div class="form-group">
+      <label>Item Type</label>
+      <input type="text" id="add-unit-type-name" readonly style="background:#f1f5f9;">
+    </div>
+    <div class="form-group">
+      <label>RFID UID <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="add-unit-uid" placeholder="e.g. A1:B2:C3:D5" style="font-family:monospace;">
+    </div>
+    <div class="form-group">
+      <label>Unit Label <span style="color:#64748b;font-weight:400;">(auto-generated if blank)</span></label>
+      <input type="text" id="add-unit-label" placeholder="e.g. Multimeter #2 or Serial No.">
+    </div>
+    <div id="add-unit-msg" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-unit')">Cancel</button>
+      <button class="btn btn-primary" id="save-unit-btn" onclick="submitAddUnit()">💾 Add Unit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Item Type Modal -->
+<div class="modal-overlay" id="modal-edit-type">
+  <div class="modal">
+    <h3>✏️ Edit Item Type</h3>
+    <input type="hidden" id="edit-type-id">
+    <div class="form-group">
+      <label>Item Name <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="edit-type-name">
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <select id="edit-type-category">
+        <option>Electronics</option><option>Instruments</option>
+        <option>Tools</option><option>Books</option><option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="edit-type-location">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="edit-type-desc" rows="2"></textarea>
+    </div>
+    <div id="edit-type-msg" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-type')">Cancel</button>
+      <button class="btn btn-primary" id="save-type-btn" onclick="submitEditType()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Unit Modal -->
+<div class="modal-overlay" id="modal-edit-unit">
+  <div class="modal">
+    <h3>✏️ Edit Unit</h3>
+    <input type="hidden" id="edit-unit-id">
+    <input type="hidden" id="edit-unit-type">
+    <div class="form-group">
+      <label>RFID UID <span style="color:#64748b;font-weight:400;">(read-only)</span></label>
+      <input type="text" id="edit-unit-uid" readonly style="background:#f1f5f9;font-family:monospace;">
+    </div>
+    <div class="form-group">
+      <label>Unit Label</label>
+      <input type="text" id="edit-unit-label" placeholder="e.g. Multimeter #2">
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="edit-unit-status">
+        <option value="available">Available</option>
+        <option value="borrowed">Borrowed</option>
+        <option value="maintenance">Maintenance</option>
+        <option value="retired">Retired</option>
+      </select>
+    </div>
+    <div id="edit-unit-msg" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-unit')">Cancel</button>
+      <button class="btn btn-primary" id="save-unit-edit-btn" onclick="submitEditUnit()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Add User Modal -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <h3>➕ Register New Borrower</h3>
+    <div class="form-group">
+      <label>RFID UID <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="user-uid" placeholder="e.g. U1:V2:W3:X4" style="font-family:monospace;">
+    </div>
+    <div class="form-group">
+      <label>Full Name <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="user-name" placeholder="Juan Dela Cruz">
+    </div>
+    <div class="form-group">
+      <label>ID Number</label>
+      <input type="text" id="user-studentid" placeholder="2024-00001">
+    </div>
+    <div class="form-group">
+      <label>Department</label>
+      <input type="text" id="user-dept" placeholder="Computer Engineering">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="user-email" placeholder="student@school.edu">
+    </div>
+    <div class="form-group">
+      <label>Phone</label>
+      <input type="text" id="user-phone" placeholder="09XX-XXX-XXXX">
+    </div>
+    <div class="form-group">
+      <label>Role</label>
+      <select id="user-role">
+        <option value="student">Student</option>
+        <option value="staff">Staff</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div id="add-user-msg" style="display:none; padding:8px 12px; border-radius:8px; font-size:13px; margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-user')">Cancel</button>
+      <button class="btn btn-primary" id="save-user-btn" onclick="submitAddUser()">💾 Save Borrower</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Page Navigation ──────────────────────────────────────────
+const pageMap = {
+  'dashboard':    'Dashboard',
+  'inventory':    'Inventory',
+  'transactions': 'Transactions',
+  'users':        'Borrowers',
+  'logs':         'Activity Logs',
+  'overdue':      'Overdue Items',
+  'rfid-register':'Register RFID'
+};
+
+// ── Modal ────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ── Tabs ─────────────────────────────────────────────────────
+function setTab(el, name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Date/Time ────────────────────────────────────────────────
+function updateTime() {
+  document.getElementById('datetime').textContent = new Date().toLocaleString('en-PH');
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+// ── Filter Inventory ─────────────────────────────────────────
+function filterInventory() {
+  const q = document.getElementById('inv-search').value.toLowerCase();
+  document.querySelectorAll('#inventory-table tr').forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// ── Simulate LED Blink (demo) ─────────────────────────────────
+function simulateLED(color) {
+  const led = document.getElementById('led-' + color);
+  led.classList.remove('off');
+  setTimeout(() => led.classList.add('off'), 2000);
+}
+
+// Simulate periodic RFID scans for demo
+setInterval(() => {
+  const colors = ['green','blue','red'];
+  const color = colors[Math.floor(Math.random()*3)];
+  simulateLED(color);
+}, 8000);
+
+// ── Transactions state ───────────────────────────────────────
+let allTransactions = [];
+let currentTab      = 'all';
+
+// ── Load Transactions (connects to PHP backend) ───────────────
+async function loadTransactions() {
+  try {
+    const res  = await fetch('/rfid_inventory/api/transactions.php');
+    const data = await res.json();
+
+    // Update today's summary on dashboard
+    if (data.today_borrows !== undefined) {
+      document.getElementById('today-borrows').textContent = data.today_borrows;
+      document.getElementById('today-returns').textContent = data.today_returns;
+      document.getElementById('today-errors').textContent  = data.today_errors;
+    }
+
+    allTransactions = data.transactions || [];
+
+    // Update dashboard recent-txn (latest 5 only)
+    const dashTbody = document.getElementById('recent-txn');
+    if (allTransactions.length) {
+      dashTbody.innerHTML = allTransactions.slice(0, 5).map(t => `
+        <tr>
+          <td><strong>${t.item_name}</strong></td>
+          <td><span class="badge ${t.action==='borrow'?'badge-blue':'badge-green'}">${t.action.toUpperCase()}</span></td>
+          <td>${t.borrower || '—'}</td>
+          <td>${t.created_at}</td>
+          <td><span class="status-pill status-${t.status === 'completed' ? 'available' : t.status}">${t.status}</span></td>
+        </tr>`).join('');
+    } else {
+      dashTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px;">No transactions yet</td></tr>';
+    }
+
+    // Render full transactions table with current tab filter
+    renderTransactionTable();
+
+  } catch(e) {
+    console.log('Could not load transactions:', e.message);
+    document.getElementById('recent-txn').innerHTML =
+      '<tr><td colspan="5" style="text-align:center;color:#ef4444;padding:24px;">⚠️ Cannot reach server</td></tr>';
+  }
+}
+
+// ── Render transactions table (respects tab + search) ─────────
+function renderTransactionTable() {
+  const search = (document.getElementById('txn-search')?.value || '').toLowerCase();
+
+  const filtered = allTransactions.filter(t => {
+    const matchTab =
+      currentTab === 'all'       ? true :
+      currentTab === 'active'    ? t.status === 'active' :
+      currentTab === 'completed' ? t.status === 'completed' :
+      currentTab === 'overdue'   ? (t.status === 'active' && t.due_date && new Date(t.due_date) < new Date()) :
+      true;
+
+    const matchSearch = !search ||
+      (t.item_name  || '').toLowerCase().includes(search) ||
+      (t.borrower   || '').toLowerCase().includes(search) ||
+      (t.student_id || '').toLowerCase().includes(search) ||
+      (t.action     || '').toLowerCase().includes(search);
+
+    return matchTab && matchSearch;
+  });
+
+  const txnTbody = document.getElementById('txn-table');
+  if (!txnTbody) return;
+
+  document.getElementById('txn-count').textContent =
+    `${filtered.length} record${filtered.length !== 1 ? 's' : ''}`;
+
+  if (!filtered.length) {
+    txnTbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:32px;">No transactions found</td></tr>';
+    return;
+  }
+
+  const statusMap = {
+    active:    { cls: 'status-borrowed',  label: 'Active'    },
+    completed: { cls: 'status-available', label: 'Completed' },
+    overdue:   { cls: 'status-overdue',   label: 'Overdue'   },
+    cancelled: { cls: 'status-maintenance',label:'Cancelled' },
+  };
+
+  txnTbody.innerHTML = filtered.map((t, i) => {
+    // Flag as overdue if active and past due date
+    const isOverdue = t.status === 'active' && t.due_date && new Date(t.due_date) < new Date();
+    const statusKey = isOverdue ? 'overdue' : (t.status || 'active');
+    const s         = statusMap[statusKey] || { cls: '', label: statusKey };
+
+    return `<tr>
+      <td style="color:#64748b;">${i + 1}</td>
+      <td><strong>${t.item_name}</strong></td>
+      <td>${t.borrower || '—'}<br><small style="color:#64748b;">${t.student_id || ''}</small></td>
+      <td><span class="badge ${t.action === 'borrow' ? 'badge-blue' : 'badge-green'}">${t.action.toUpperCase()}</span></td>
+      <td style="font-size:13px;">${t.borrow_date || '—'}</td>
+      <td style="font-size:13px; ${isOverdue ? 'color:#dc2626; font-weight:600;' : ''}">${t.due_date || '—'}</td>
+      <td style="font-size:13px;">${t.return_date || '—'}</td>
+      <td><span class="status-pill ${s.cls}">${s.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Tab switching (now actually filters) ─────────────────────
+function setTab(el, name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentTab = name;
+  renderTransactionTable();
+}
+
+// ── Search filter ─────────────────────────────────────────────
+function filterTransactions() {
+  renderTransactionTable();
+}
+
+// ── Load Activity Logs ────────────────────────────────────────
+async function loadLogs() {
+  try {
+    const res  = await fetch('/rfid_inventory/api/logs.php');
+    const data = await res.json();
+    const tbody = document.getElementById('logs-table');
+    if (!tbody) return;
+
+    if (!data.logs || !data.logs.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:32px;">No logs yet</td></tr>';
+      return;
+    }
+
+    const resultColor = { success: 'badge-green', error: 'badge-red', warning: 'badge-yellow' };
+    tbody.innerHTML = data.logs.map(l => `
+      <tr>
+        <td style="font-size:12px;">${l.logged_at}</td>
+        <td style="font-family:monospace; font-size:12px;">${l.rfid_uid || '—'}</td>
+        <td>${l.action || '—'}</td>
+        <td><span class="badge ${resultColor[l.result] || ''}">${l.result}</span></td>
+        <td style="font-size:13px;">${l.message || '—'}</td>
+        <td style="font-size:12px; color:#64748b;">${l.ip_address || '—'}</td>
+      </tr>`).join('');
+  } catch(e) {
+    console.log('Could not load logs:', e.message);
+  }
+}
+
+// ── Load Overdue Items ────────────────────────────────────────
+async function loadOverdue() {
+  try {
+    const res  = await fetch('/rfid_inventory/api/overdue.php');
+    const data = await res.json();
+    const tbody = document.getElementById('overdue-table');
+    if (!tbody) return;
+
+    if (!data.overdue || !data.overdue.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#16a34a;padding:32px;">✅ No overdue items!</td></tr>';
+      document.getElementById('stat-overdue').textContent = 0;
+      return;
+    }
+
+    document.getElementById('stat-overdue').textContent = data.overdue.length;
+    tbody.innerHTML = data.overdue.map(o => `
+      <tr>
+        <td><strong>${o.item_name}</strong></td>
+        <td>${o.borrower || '—'}<br><small style="color:#64748b;">${o.student_id || ''}</small></td>
+        <td style="font-size:13px;">${o.borrow_date}</td>
+        <td style="font-size:13px; color:#dc2626; font-weight:600;">${o.due_date}</td>
+        <td><span class="badge badge-red">${o.days_overdue} day${o.days_overdue != 1 ? 's' : ''}</span></td>
+        <td><button class="btn btn-danger btn-sm" onclick="alert('Notice sent to ${o.borrower}')">📧 Send Notice</button></td>
+      </tr>`).join('');
+  } catch(e) {
+    console.log('Could not load overdue:', e.message);
+  }
+}
+
+// ── Auto-refresh every 15 seconds ────────────────────────────
+setInterval(() => {
+  loadTransactions();
+  loadInventory();
+  loadOverdue();
+  loadLogs();
+}, 15000);
+
+// ── Live Feed — polls every 3 seconds ────────────────────────
+let lastFeedLogId  = 0;   // tracks last seen log ID to detect new entries
+let feedOffline    = false;
+
+async function loadLiveFeed() {
+  const feed       = document.getElementById('live-feed');
+  const statusDot  = document.getElementById('feed-status');
+  if (!feed) return;
+
+  try {
+    const res  = await fetch('/rfid_inventory/api/feed.php?after=' + lastFeedLogId);
+    const data = await res.json();
+
+    // Mark feed as online
+    if (feedOffline) {
+      feedOffline = false;
+      statusDot.style.background = '#dcfce7';
+      statusDot.style.color      = '#15803d';
+      statusDot.textContent      = '● Live';
+    }
+
+    if (!data.logs || !data.logs.length) return;
+
+    // Update last seen ID
+    lastFeedLogId = Math.max(...data.logs.map(l => l.id));
+
+    // Build new feed items (newest first)
+    const dotClass = { borrow: 'borrow', return: 'return', error: 'error',
+                       scan: 'error', warning: 'error' };
+
+    const newItems = data.logs.map(log => {
+      const dot  = dotClass[log.action] || (log.result === 'success' ? 'borrow' : 'error');
+      const time = timeAgo(log.logged_at);
+      let   text = '';
+
+      if (log.result === 'success' && log.action === 'borrow')
+        text = `<strong>${log.item_name || 'Item'}</strong> borrowed by ${log.borrower || 'unknown'}`;
+      else if (log.result === 'success' && log.action === 'return')
+        text = `<strong>${log.item_name || 'Item'}</strong> returned by ${log.borrower || 'unknown'}`;
+      else if (log.result === 'error' && log.message && log.message.includes('Unknown'))
+        text = `Unknown card scanned`;
+      else
+        text = log.message || log.action;
+
+      return `
+        <div class="feed-item">
+          <div class="feed-dot ${dot}"></div>
+          <div>
+            <div class="feed-text">${text}</div>
+            <div class="feed-time">${time} · UID: ${log.rfid_uid || '—'}</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Prepend new items to top of feed, keep max 20 entries
+    feed.insertAdjacentHTML('afterbegin', newItems);
+    const items = feed.querySelectorAll('.feed-item');
+    if (items.length > 20) {
+      for (let i = 20; i < items.length; i++) items[i].remove();
+    }
+
+    // Flash the Live badge to signal new activity
+    statusDot.textContent      = '● New!';
+    statusDot.style.background = '#fef9c3';
+    statusDot.style.color      = '#a16207';
+    setTimeout(() => {
+      statusDot.textContent      = '● Live';
+      statusDot.style.background = '#dcfce7';
+      statusDot.style.color      = '#15803d';
+    }, 2000);
+
+  } catch(e) {
+    // Mark feed as offline
+    if (!feedOffline) {
+      feedOffline = true;
+      statusDot.style.background = '#fee2e2';
+      statusDot.style.color      = '#b91c1c';
+      statusDot.textContent      = '● Offline';
+    }
+  }
+}
+
+// ── Time-ago helper ───────────────────────────────────────────
+function timeAgo(dateStr) {
+  if (!dateStr) return '—';
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff <  60)  return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400)return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+// Poll live feed every 3 seconds
+loadLiveFeed();
+setInterval(loadLiveFeed, 3000);
+
+// ── Add Item TYPE (the shared definition) ────────────────────
+async function submitAddItem() {
+  const name     = document.getElementById('add-name').value.trim();
+  const category = document.getElementById('add-category').value;
+  const location = document.getElementById('add-location').value.trim();
+  const desc     = document.getElementById('add-desc').value.trim();
+  const uid      = document.getElementById('add-uid').value.trim();
+  const label    = document.getElementById('add-item-label')?.value.trim() || '';
+  const msgBox   = document.getElementById('add-item-msg');
+  const btn      = event.currentTarget;
+
+  if (!name) {
+    msgBox.style.display = 'block'; msgBox.style.background = '#fee2e2';
+    msgBox.style.color   = '#b91c1c'; msgBox.textContent = '⚠️ Item Name is required.';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Saving...'; msgBox.style.display = 'none';
+
+  try {
+    // Step 1: create the item type
+    let fd = new URLSearchParams();
+    fd.append('action','add_type'); fd.append('item_name',name);
+    fd.append('description',desc);  fd.append('category',category);
+    fd.append('location',location);
+    let res  = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd});
+    let data = await res.json();
+    if (data.status !== 'success') throw new Error(data.message);
+    const typeId = data.id;
+
+    // Step 2: if a UID was also provided, add first unit immediately
+    if (uid) {
+      let fd2 = new URLSearchParams();
+      fd2.append('action','add_unit'); fd2.append('item_type_id',typeId);
+      fd2.append('rfid_uid',uid);     fd2.append('unit_label',label || name+' #1');
+      let res2  = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd2});
+      let data2 = await res2.json();
+      if (data2.status !== 'success') throw new Error('Type created but unit failed: '+data2.message);
+    }
+
+    msgBox.style.display = 'block'; msgBox.style.background = '#dcfce7';
+    msgBox.style.color   = '#15803d';
+    msgBox.textContent   = uid ? '✅ Item type and first unit added!' : '✅ Item type created! Add units with ＋ Unit button.';
+
+    ['add-uid','add-name','add-location','add-desc'].forEach(id=>{
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    setTimeout(()=>{ closeModal('modal-add-item'); msgBox.style.display='none'; loadInventory(); }, 1400);
+
+  } catch(err) {
+    msgBox.style.display = 'block'; msgBox.style.background = '#fee2e2';
+    msgBox.style.color   = '#b91c1c'; msgBox.textContent = '❌ '+err.message;
+  } finally { btn.disabled=false; btn.textContent='💾 Save Item'; }
+}
+
+// ── Add UNIT to existing type ─────────────────────────────────
+function openAddUnitModal(typeId, typeName) {
+  document.getElementById('add-unit-type-id').value   = typeId;
+  document.getElementById('add-unit-type-name').value = typeName;
+  document.getElementById('add-unit-uid').value        = '';
+  document.getElementById('add-unit-label').value      = '';
+  const msg = document.getElementById('add-unit-msg');
+  msg.style.display = 'none'; msg.textContent = '';
+  openModal('modal-add-unit');
+}
+
+async function submitAddUnit() {
+  const typeId = document.getElementById('add-unit-type-id').value;
+  const uid    = document.getElementById('add-unit-uid').value.trim();
+  const label  = document.getElementById('add-unit-label').value.trim();
+  const msgBox = document.getElementById('add-unit-msg');
+  const btn    = document.getElementById('save-unit-btn');
+
+  if (!uid) {
+    msgBox.style.display='block'; msgBox.style.background='#fee2e2';
+    msgBox.style.color='#b91c1c'; msgBox.textContent='⚠️ RFID UID is required.';
+    return;
+  }
+  btn.disabled=true; btn.textContent='Saving...'; msgBox.style.display='none';
+  try {
+    const fd = new URLSearchParams();
+    fd.append('action','add_unit'); fd.append('item_type_id',typeId);
+    fd.append('rfid_uid',uid);      fd.append('unit_label',label);
+    const res  = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd});
+    const data = await res.json();
+    if (data.status !== 'success') throw new Error(data.message);
+    msgBox.style.display='block'; msgBox.style.background='#dcfce7';
+    msgBox.style.color='#15803d'; msgBox.textContent='✅ Unit added to stack!';
+    document.getElementById('add-unit-uid').value='';
+    document.getElementById('add-unit-label').value='';
+    setTimeout(()=>{ closeModal('modal-add-unit'); msgBox.style.display='none'; loadInventory(); },1200);
+  } catch(err) {
+    msgBox.style.display='block'; msgBox.style.background='#fee2e2';
+    msgBox.style.color='#b91c1c'; msgBox.textContent='❌ '+err.message;
+  } finally { btn.disabled=false; btn.textContent='💾 Add Unit'; }
+}
+
+// ── Edit item TYPE ────────────────────────────────────────────
+function openEditTypeModal(id, name, category, location, desc) {
+  document.getElementById('edit-type-id').value       = id;
+  document.getElementById('edit-type-name').value     = name;
+  document.getElementById('edit-type-location').value = location;
+  document.getElementById('edit-type-desc').value     = desc;
+  const sel = document.getElementById('edit-type-category');
+  [...sel.options].forEach(o => o.selected = o.value===category);
+  const msg = document.getElementById('edit-type-msg');
+  msg.style.display='none'; msg.textContent='';
+  openModal('modal-edit-type');
+}
+
+async function submitEditType() {
+  const id       = document.getElementById('edit-type-id').value;
+  const name     = document.getElementById('edit-type-name').value.trim();
+  const category = document.getElementById('edit-type-category').value;
+  const location = document.getElementById('edit-type-location').value.trim();
+  const desc     = document.getElementById('edit-type-desc').value.trim();
+  const msgBox   = document.getElementById('edit-type-msg');
+  const btn      = document.getElementById('save-type-btn');
+  if (!name) { msgBox.style.display='block'; msgBox.style.background='#fee2e2'; msgBox.style.color='#b91c1c'; msgBox.textContent='⚠️ Name required.'; return; }
+  btn.disabled=true; btn.textContent='Saving...'; msgBox.style.display='none';
+  try {
+    const fd = new URLSearchParams();
+    fd.append('action','update_type'); fd.append('id',id);
+    fd.append('item_name',name); fd.append('category',category);
+    fd.append('location',location); fd.append('description',desc);
+    const res  = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd});
+    const data = await res.json();
+    if (data.status !== 'success') throw new Error(data.message);
+    msgBox.style.display='block'; msgBox.style.background='#dcfce7'; msgBox.style.color='#15803d'; msgBox.textContent='✅ Updated!';
+    setTimeout(()=>{ closeModal('modal-edit-type'); loadInventory(); },1000);
+  } catch(err) {
+    msgBox.style.display='block'; msgBox.style.background='#fee2e2'; msgBox.style.color='#b91c1c'; msgBox.textContent='❌ '+err.message;
+  } finally { btn.disabled=false; btn.textContent='💾 Save Changes'; }
+}
+
+// ── Edit single UNIT ──────────────────────────────────────────
+function openEditUnitModal(id, uid, label, status, typeId) {
+  document.getElementById('edit-unit-id').value     = id;
+  document.getElementById('edit-unit-uid').value    = uid;
+  document.getElementById('edit-unit-label').value  = label;
+  document.getElementById('edit-unit-type').value   = typeId;
+  const sel = document.getElementById('edit-unit-status');
+  [...sel.options].forEach(o => o.selected = o.value===status);
+  const msg = document.getElementById('edit-unit-msg');
+  msg.style.display='none'; msg.textContent='';
+  openModal('modal-edit-unit');
+}
+
+async function submitEditUnit() {
+  const id     = document.getElementById('edit-unit-id').value;
+  const label  = document.getElementById('edit-unit-label').value.trim();
+  const status = document.getElementById('edit-unit-status').value;
+  const msgBox = document.getElementById('edit-unit-msg');
+  const btn    = document.getElementById('save-unit-edit-btn');
+  btn.disabled=true; btn.textContent='Saving...'; msgBox.style.display='none';
+  try {
+    const fd = new URLSearchParams();
+    fd.append('action','update_unit'); fd.append('id',id);
+    fd.append('unit_label',label);     fd.append('status',status);
+    const res  = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd});
+    const data = await res.json();
+    if (data.status !== 'success') throw new Error(data.message);
+    msgBox.style.display='block'; msgBox.style.background='#dcfce7'; msgBox.style.color='#15803d'; msgBox.textContent='✅ Unit updated!';
+    setTimeout(()=>{ closeModal('modal-edit-unit'); loadInventory(); },1000);
+  } catch(err) {
+    msgBox.style.display='block'; msgBox.style.background='#fee2e2'; msgBox.style.color='#b91c1c'; msgBox.textContent='❌ '+err.message;
+  } finally { btn.disabled=false; btn.textContent='💾 Save'; }
+}
+
+// ── Delete type / unit ────────────────────────────────────────
+async function deleteType(id, name) {
+  if (!confirm(`🗑 Delete item type "${name}" and ALL its units?\nThis cannot be undone.`)) return;
+  const fd = new URLSearchParams(); fd.append('action','delete_type'); fd.append('id',id);
+  const res  = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd});
+  const data = await res.json();
+  data.status === 'success' ? loadInventory() : alert('❌ '+data.message);
+}
+
+async function deleteUnit(id, label, status) {
+  if (status === 'borrowed') { alert(`⚠️ Cannot remove "${label}" — currently borrowed.`); return; }
+  if (!confirm(`🗑 Remove unit "${label}" from stack?`)) return;
+  const fd = new URLSearchParams(); fd.append('action','delete_unit'); fd.append('id',id);
+  const res  = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd});
+  const data = await res.json();
+  data.status === 'success' ? loadInventory() : alert('❌ '+data.message);
+}
+
+
+// ── Load Inventory Table (stack-aware) ───────────────────────
+async function loadInventory() {
+  try {
+    const res  = await fetch('/rfid_inventory/api/items.php');
+    const data = await res.json();
+
+    if (data.stats) {
+      document.getElementById('stat-total').textContent     = data.stats.total     || 0;
+      document.getElementById('stat-available').textContent = data.stats.available  || 0;
+      document.getElementById('stat-borrowed').textContent  = data.stats.borrowed   || 0;
+      document.getElementById('stat-overdue').textContent   = data.stats.overdue    || 0;
+    }
+
+    const tbody = document.getElementById('inventory-table');
+    if (!data.types || !data.types.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:32px;">No items yet. Click ＋ Add Item Type to begin.</td></tr>';
+      return;
+    }
+
+    const scls = { available:'status-available', borrowed:'status-borrowed',
+                   maintenance:'status-maintenance', retired:'status-maintenance' };
+
+    tbody.innerHTML = data.types.map(type => {
+      const avail    = type.units_available;
+      const total    = type.total_units;
+      const borrowed = total - avail;
+      const typeStatus = avail === 0 && total > 0 ? 'borrowed'
+                       : avail < total             ? 'partial'
+                       :                             'available';
+      const typePill = typeStatus === 'borrowed'  ? '<span class="status-pill status-borrowed">All Borrowed</span>'
+                     : typeStatus === 'partial'   ? `<span class="status-pill" style="background:#fef9c3;color:#a16207;">${borrowed}/${total} Borrowed</span>`
+                     :                              '<span class="status-pill status-available">All Available</span>';
+
+      // Unit rows (sub-rows shown under the type row)
+      const unitRows = (type.units || []).map(u => `
+        <tr style="background:#f8fafc;">
+          <td style="padding-left:32px; font-family:monospace; font-size:11px; color:#64748b;">↳ ${u.rfid_uid}</td>
+          <td style="font-size:13px; color:#475569;">${u.unit_label || '—'}</td>
+          <td colspan="2" style="font-size:12px; color:#94a3b8;">Unit</td>
+          <td></td>
+          <td><span class="status-pill ${scls[u.status] || ''}" style="font-size:11px;">${u.status}</span></td>
+          <td style="display:flex; gap:4px;">
+            <button class="btn btn-outline btn-sm" style="font-size:11px;"
+              onclick="openEditUnitModal(${u.id},'${escHtml(u.rfid_uid)}','${escHtml(u.unit_label)}','${u.status}',${type.id})">✏️</button>
+            <button class="btn btn-danger btn-sm"  style="font-size:11px;"
+              onclick="deleteUnit(${u.id},'${escHtml(u.unit_label)}','${u.status}')">🗑</button>
+          </td>
+        </tr>`).join('');
+
+      return `
+        <tr style="border-top:2px solid #e2e8f0;">
+          <td style="font-size:12px; color:#94a3b8;">—</td>
+          <td><strong>${type.item_name}</strong>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${type.category} · ${type.location}</div>
+          </td>
+          <td>${type.category}</td>
+          <td>
+            <span style="font-weight:700;">${avail}</span>
+            <span style="color:#94a3b8; font-size:12px;">/ ${total}</span>
+          </td>
+          <td>${type.location}</td>
+          <td>${typePill}</td>
+          <td style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" style="font-size:11px;"
+              onclick="openAddUnitModal(${type.id},'${escHtml(type.item_name)}')">＋ Unit</button>
+            <button class="btn btn-outline btn-sm" style="font-size:11px;"
+              onclick="openEditTypeModal(${type.id},'${escHtml(type.item_name)}','${escHtml(type.category)}','${escHtml(type.location)}','${escHtml(type.description||'')}')">✏️</button>
+            <button class="btn btn-danger btn-sm"  style="font-size:11px;"
+              onclick="deleteType(${type.id},'${escHtml(type.item_name)}')">🗑</button>
+          </td>
+        </tr>
+        ${unitRows}`;
+    }).join('');
+
+  } catch (e) {
+    console.log('Could not load inventory:', e.message);
+  }
+}
+
+// ── Escape HTML for inline onclick attributes ─────────────────
+function escHtml(str) {
+  return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ── Open Edit Item Modal (pre-filled) ─────────────────────────
+function openEditModal(id, uid, name, category, qty, location, desc, status) {
+  document.getElementById('edit-item-id').value       = id;
+  document.getElementById('edit-item-uid').value      = uid;
+  document.getElementById('edit-item-name').value     = name;
+  document.getElementById('edit-item-qty').value      = qty;
+  document.getElementById('edit-item-location').value = location;
+  document.getElementById('edit-item-desc').value     = desc;
+
+  // Set category dropdown
+  const catSel = document.getElementById('edit-item-category');
+  [...catSel.options].forEach(o => o.selected = o.value === category);
+
+  // Set status dropdown
+  const stSel = document.getElementById('edit-item-status');
+  [...stSel.options].forEach(o => o.selected = o.value === status);
+
+  // Clear any previous message
+  const msg = document.getElementById('edit-item-msg');
+  msg.style.display = 'none';
+  msg.textContent   = '';
+
+  openModal('modal-edit-item');
+}
+
+// ── Submit Edit Item ──────────────────────────────────────────
+async function submitEditItem() {
+  const id       = document.getElementById('edit-item-id').value;
+  const name     = document.getElementById('edit-item-name').value.trim();
+  const category = document.getElementById('edit-item-category').value;
+  const qty      = document.getElementById('edit-item-qty').value;
+  const location = document.getElementById('edit-item-location').value.trim();
+  const desc     = document.getElementById('edit-item-desc').value.trim();
+  const status   = document.getElementById('edit-item-status').value;
+  const msgBox   = document.getElementById('edit-item-msg');
+  const btn      = document.getElementById('update-item-btn');
+
+  if (!name) {
+    msgBox.style.display    = 'block';
+    msgBox.style.background = '#fee2e2';
+    msgBox.style.color      = '#b91c1c';
+    msgBox.textContent      = '⚠️ Item Name is required.';
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = 'Saving...';
+  msgBox.style.display = 'none';
+
+  try {
+    const formData = new URLSearchParams();
+    formData.append('action',      'update');
+    formData.append('id',          id);
+    formData.append('item_name',   name);
+    formData.append('category',    category);
+    formData.append('quantity',    qty);
+    formData.append('location',    location);
+    formData.append('description', desc);
+    formData.append('status',      status);
+
+    const res  = await fetch('/rfid_inventory/api/items.php', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      msgBox.style.display    = 'block';
+      msgBox.style.background = '#dcfce7';
+      msgBox.style.color      = '#15803d';
+      msgBox.textContent      = '✅ Item updated successfully!';
+      setTimeout(() => {
+        closeModal('modal-edit-item');
+        msgBox.style.display = 'none';
+        loadInventory();
+      }, 1000);
+    } else {
+      throw new Error(data.message || 'Unknown error');
+    }
+  } catch (err) {
+    msgBox.style.display    = 'block';
+    msgBox.style.background = '#fee2e2';
+    msgBox.style.color      = '#b91c1c';
+    msgBox.textContent      = '❌ Error: ' + err.message;
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '💾 Save Changes';
+  }
+}
+
+// ── Delete Item ───────────────────────────────────────────────
+async function deleteItem(id, name, status) {
+  if (status === 'borrowed') {
+    alert(`⚠️ Cannot delete "${name}" — it is currently borrowed.\nWait for it to be returned first.`);
+    return;
+  }
+  if (!confirm(`🗑 Delete "${name}" from inventory?\nThis cannot be undone.`)) return;
+
+  try {
+    const formData = new URLSearchParams();
+    formData.append('action', 'delete');
+    formData.append('id',     id);
+
+    const res  = await fetch('/rfid_inventory/api/items.php', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      loadInventory();
+    } else {
+      alert('❌ Error: ' + data.message);
+    }
+  } catch (err) {
+    alert('❌ Request failed: ' + err.message);
+  }
+}
+
+
+async function submitAddUser() {
+  const uid       = document.getElementById('user-uid').value.trim();
+  const name      = document.getElementById('user-name').value.trim();
+  const studentId = document.getElementById('user-studentid').value.trim();
+  const dept      = document.getElementById('user-dept').value.trim();
+  const email     = document.getElementById('user-email').value.trim();
+  const phone     = document.getElementById('user-phone').value.trim();
+  const role      = document.getElementById('user-role').value;
+  const msgBox    = document.getElementById('add-user-msg');
+  const btn       = document.getElementById('save-user-btn');
+
+  // Validation
+  if (!uid || !name) {
+    msgBox.style.display    = 'block';
+    msgBox.style.background = '#fee2e2';
+    msgBox.style.color      = '#b91c1c';
+    msgBox.textContent      = '⚠️ RFID UID and Full Name are required.';
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = 'Saving...';
+  msgBox.style.display = 'none';
+
+  try {
+    const formData = new URLSearchParams();
+    formData.append('action',     'add');
+    formData.append('rfid_uid',   uid);
+    formData.append('full_name',  name);
+    formData.append('student_id', studentId);
+    formData.append('department', dept);
+    formData.append('email',      email);
+    formData.append('phone',      phone);
+    formData.append('role',       role);
+
+    const res  = await fetch('/rfid_inventory/api/users.php', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      msgBox.style.display    = 'block';
+      msgBox.style.background = '#dcfce7';
+      msgBox.style.color      = '#15803d';
+      msgBox.textContent      = '✅ Borrower registered successfully!';
+
+      // Clear all fields
+      ['user-uid','user-name','user-studentid','user-dept','user-email','user-phone'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('user-role').value = 'student';
+
+      // Refresh users table then close
+      setTimeout(() => {
+        closeModal('modal-add-user');
+        msgBox.style.display = 'none';
+        loadUsers();
+      }, 1200);
+
+    } else {
+      throw new Error(data.message || 'Unknown error');
+    }
+
+  } catch (err) {
+    msgBox.style.display    = 'block';
+    msgBox.style.background = '#fee2e2';
+    msgBox.style.color      = '#b91c1c';
+    msgBox.textContent      = '❌ Error: ' + err.message;
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '💾 Save Borrower';
+  }
+}
+
+// ── Load Users Table from DB ──────────────────────────────────
+async function loadUsers() {
+  try {
+    const res  = await fetch('/rfid_inventory/api/users.php');
+    const data = await res.json();
+
+    if (!data.users || !data.users.length) return;
+
+    const roleColor = { student: 'badge-blue', staff: 'badge-green', admin: 'badge-yellow' };
+
+    document.getElementById('users-table').innerHTML = data.users.map(u => `
+      <tr>
+        <td style="font-family:monospace; font-size:12px;">${u.rfid_uid}</td>
+        <td><strong>${u.full_name}</strong></td>
+        <td>${u.student_id || '—'}</td>
+        <td>${u.department || '—'}</td>
+        <td><span class="badge ${roleColor[u.role] || 'badge-blue'}">${u.role}</span></td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="deleteUser(${u.id}, '${u.full_name}')">🗑 Remove</button>
+        </td>
+      </tr>`).join('');
+
+  } catch (e) {
+    console.log('Could not load users:', e.message);
+  }
+}
+
+// ── Delete User ───────────────────────────────────────────────
+async function deleteUser(id, name) {
+  if (!confirm(`Remove borrower "${name}" from the system?`)) return;
+  try {
+    const formData = new URLSearchParams();
+    formData.append('action', 'delete');
+    formData.append('id', id);
+    const res  = await fetch('/rfid_inventory/api/users.php', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.status === 'success') loadUsers();
+    else alert('Error: ' + data.message);
+  } catch (e) {
+    alert('Request failed: ' + e.message);
+  }
+}
+
+// ── Load on page switch ───────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('[id^="page-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('page-' + name).style.display = '';
+  document.getElementById('page-title').textContent = pageMap[name] || name;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  if (name === 'transactions')  { currentTab = 'all'; loadTransactions(); }
+  if (name === 'logs')          loadLogs();
+  if (name === 'overdue')       loadOverdue();
+  if (name === 'inventory')     loadInventory();
+  if (name === 'users')         loadUsers();
+  if (name === 'rfid-register') initRegisterPage();
+}
+
+// ══ REGISTER RFID PAGE ══════════════════════════════════════════
+
+let regScanInterval  = null;   // polling interval for live UID
+let lastScannedUID   = '';     // last UID seen from ESP32
+let regHistory       = [];     // recently registered cards
+
+// ── Called when page is opened ────────────────────────────────
+async function initRegisterPage() {
+  clearRegForm();
+  loadRegisterHistory();
+  await loadExistingTypes();   // populate the existing-type dropdown
+  startUIDPolling();
+}
+
+// ── Toggle between Item / User registration ───────────────────
+function setRegType(type) {
+  document.getElementById('reg-type').value = type;
+  const isItem = type === 'item';
+
+  document.getElementById('reg-item-fields').style.display = isItem ? '' : 'none';
+  document.getElementById('reg-user-fields').style.display = isItem ? 'none' : '';
+  document.getElementById('reg-form-title').textContent    = isItem ? '📦 Item Details' : '👤 Borrower Details';
+
+  document.getElementById('reg-as-item').className = isItem ? 'btn btn-primary' : 'btn btn-outline';
+  document.getElementById('reg-as-user').className = isItem ? 'btn btn-outline' : 'btn btn-primary';
+  document.getElementById('reg-as-item').style.flex = '1';
+  document.getElementById('reg-as-user').style.flex = '1';
+  clearRegMsg();
+}
+
+// ── Show/hide new-type fields based on existing-type select ───
+function onExistingTypeChange() {
+  const val      = document.getElementById('reg-existing-type').value;
+  const newBlock = document.getElementById('reg-new-type-fields');
+  newBlock.style.display = val ? 'none' : '';
+}
+
+// ── Load existing item types into dropdown ────────────────────
+async function loadExistingTypes() {
+  try {
+    const res  = await fetch('/rfid_inventory/api/items.php');
+    const data = await res.json();
+    const sel  = document.getElementById('reg-existing-type');
+    sel.innerHTML = '<option value="">— Create new item type —</option>';
+    (data.types || []).forEach(t => {
+      const opt = document.createElement('option');
+      opt.value       = t.id;
+      opt.textContent = `${t.item_name} (${t.units_available}/${t.total_units} available)`;
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.log('Could not load types:', e.message); }
+}
+
+// ── Poll ESP32 for latest scanned UID (every 2s) ──────────────
+function startUIDPolling() {
+  stopUIDPolling();
+  regScanInterval = setInterval(pollLatestUID, 2000);
+}
+
+function stopUIDPolling() {
+  if (regScanInterval) { clearInterval(regScanInterval); regScanInterval = null; }
+}
+
+async function pollLatestUID() {
+  try {
+    const res  = await fetch('/rfid_inventory/api/latest_scan.php');
+    const data = await res.json();
+    if (!data.uid) return;
+
+    const dot = document.getElementById('scan-live-dot');
+
+    // Only update if it's a new UID
+    if (data.uid !== lastScannedUID) {
+      lastScannedUID = data.uid;
+      document.getElementById('reg-uid').value = data.uid;
+      dot.style.background = '#dcfce7'; dot.style.color = '#15803d';
+      dot.textContent = '● Card Detected!';
+      setTimeout(()=>{ dot.style.background='#fef9c3'; dot.style.color='#a16207'; dot.textContent='● Ready'; }, 3000);
+      checkUID(data.uid);
+    }
+  } catch(e) {
+    const dot = document.getElementById('scan-live-dot');
+    dot.style.background='#f1f5f9'; dot.style.color='#64748b'; dot.textContent='● Offline';
+  }
+}
+
+// ── Manual UID input ──────────────────────────────────────────
+function onUidInput() {
+  const uid = document.getElementById('reg-uid').value.trim().toUpperCase();
+  document.getElementById('reg-uid').value = uid;
+  if (uid.length >= 5) checkUID(uid);
+  else { document.getElementById('uid-check-msg').style.display = 'none'; }
+}
+
+// ── Check if UID is already registered ───────────────────────
+async function checkUID(uid) {
+  const msg = document.getElementById('uid-check-msg');
+  try {
+    const res  = await fetch('/rfid_inventory/api/latest_scan.php?check='+encodeURIComponent(uid));
+    const data = await res.json();
+    msg.style.display = 'block';
+    if (data.registered) {
+      msg.style.background = '#fef9c3'; msg.style.color = '#a16207';
+      msg.textContent = `⚠️ Already registered as: ${data.registered_as} — "${data.name}"`;
+    } else {
+      msg.style.background = '#dcfce7'; msg.style.color = '#15803d';
+      msg.textContent = '✅ UID is free — not yet registered.';
+    }
+  } catch(e) { msg.style.display = 'none'; }
+}
+
+// ── Submit registration ───────────────────────────────────────
+async function submitRegister() {
+  const uid  = document.getElementById('reg-uid').value.trim().toUpperCase();
+  const type = document.getElementById('reg-type').value;
+  const msg  = document.getElementById('reg-msg');
+  const btn  = document.getElementById('reg-save-btn');
+
+  if (!uid) {
+    showRegMsg('error', '⚠️ Please scan or enter an RFID UID first.'); return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Registering...';
+  clearRegMsg();
+
+  try {
+    if (type === 'item') {
+      const existingTypeId = document.getElementById('reg-existing-type').value;
+      const unitLabel      = document.getElementById('reg-unit-label').value.trim();
+
+      if (existingTypeId) {
+        // Add unit to existing type
+        const fd = new URLSearchParams();
+        fd.append('action','add_unit'); fd.append('item_type_id', existingTypeId);
+        fd.append('rfid_uid', uid);     fd.append('unit_label', unitLabel);
+        const res  = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd});
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.message);
+        const typeName = document.getElementById('reg-existing-type').selectedOptions[0].text.split(' (')[0];
+        addToRegHistory(uid, 'Item Unit', `${typeName} — ${unitLabel || 'Auto-labeled'}`);
+        showRegMsg('success', `✅ Unit added to "${typeName}" stack!`);
+
+      } else {
+        // Create new type + first unit
+        const name     = document.getElementById('reg-item-name').value.trim();
+        const category = document.getElementById('reg-item-category').value;
+        const location = document.getElementById('reg-item-location').value.trim();
+        const desc     = document.getElementById('reg-item-desc').value.trim();
+        if (!name) { showRegMsg('error','⚠️ Item Name is required.'); return; }
+
+        // Step 1: create type
+        const fd1 = new URLSearchParams();
+        fd1.append('action','add_type'); fd1.append('item_name',name);
+        fd1.append('category',category); fd1.append('location',location);
+        fd1.append('description',desc);
+        const r1   = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd1});
+        const d1   = await r1.json();
+        if (d1.status !== 'success') throw new Error(d1.message);
+
+        // Step 2: add unit
+        const fd2 = new URLSearchParams();
+        fd2.append('action','add_unit'); fd2.append('item_type_id',d1.id);
+        fd2.append('rfid_uid',uid);      fd2.append('unit_label',unitLabel || name+' #1');
+        const r2   = await fetch('/rfid_inventory/api/items.php',{method:'POST',body:fd2});
+        const d2   = await r2.json();
+        if (d2.status !== 'success') throw new Error('Type created but unit failed: '+d2.message);
+
+        addToRegHistory(uid, 'New Item', name);
+        showRegMsg('success', `✅ New item "${name}" created with first unit!`);
+      }
+
+    } else {
+      // Register as user
+      const name = document.getElementById('reg-user-name').value.trim();
+      if (!name) { showRegMsg('error','⚠️ Full Name is required.'); return; }
+
+      const fd = new URLSearchParams();
+      fd.append('action',    'add');
+      fd.append('rfid_uid',  uid);
+      fd.append('full_name', name);
+      fd.append('student_id',document.getElementById('reg-user-id').value.trim());
+      fd.append('department',document.getElementById('reg-user-dept').value.trim());
+      fd.append('email',     document.getElementById('reg-user-email').value.trim());
+      fd.append('role',      document.getElementById('reg-user-role').value);
+      const res  = await fetch('/rfid_inventory/api/users.php',{method:'POST',body:fd});
+      const data = await res.json();
+      if (data.status !== 'success') throw new Error(data.message);
+      addToRegHistory(uid, 'Borrower', name);
+      showRegMsg('success', `✅ Borrower "${name}" registered!`);
+    }
+
+    // Reset UID + clear form fields after success
+    setTimeout(()=>{
+      lastScannedUID = '';
+      document.getElementById('reg-uid').value = '';
+      document.getElementById('uid-check-msg').style.display = 'none';
+      clearRegMsg();
+      loadExistingTypes();     // refresh dropdown with new type if added
+      loadInventory();
+      loadUsers();
+    }, 2000);
+
+  } catch(err) {
+    showRegMsg('error', '❌ ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Register RFID Card';
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function showRegMsg(type, text) {
+  const msg = document.getElementById('reg-msg');
+  msg.style.display    = 'block';
+  msg.style.background = type === 'success' ? '#dcfce7' : '#fee2e2';
+  msg.style.color      = type === 'success' ? '#15803d' : '#b91c1c';
+  msg.textContent      = text;
+}
+function clearRegMsg() {
+  const msg = document.getElementById('reg-msg');
+  if (msg) { msg.style.display='none'; msg.textContent=''; }
+}
+function clearRegForm() {
+  ['reg-uid','reg-item-name','reg-item-location','reg-item-desc',
+   'reg-unit-label','reg-user-name','reg-user-id','reg-user-dept','reg-user-email']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('uid-check-msg').style.display = 'none';
+  lastScannedUID = '';
+  clearRegMsg();
+}
+
+// ── Recent registrations history table ───────────────────────
+function addToRegHistory(uid, type, name) {
+  regHistory.unshift({ time: new Date().toLocaleString('en-PH'), uid, type, name });
+  if (regHistory.length > 10) regHistory.pop();
+  renderRegHistory();
+}
+function loadRegisterHistory() { renderRegHistory(); }
+function renderRegHistory() {
+  const tbody = document.getElementById('reg-history');
+  if (!tbody) return;
+  if (!regHistory.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px;">No registrations yet this session</td></tr>';
+    return;
+  }
+  const typeColor = { 'Item Unit':'badge-blue','New Item':'badge-green','Borrower':'badge-yellow' };
+  tbody.innerHTML = regHistory.map(r => `
+    <tr>
+      <td style="font-size:12px;color:#64748b;">${r.time}</td>
+      <td style="font-family:monospace;font-size:12px;">${r.uid}</td>
+      <td><span class="badge ${typeColor[r.type]||'badge-blue'}">${r.type}</span></td>
+      <td><strong>${r.name}</strong></td>
+      <td><span class="status-pill status-available">Registered</span></td>
+    </tr>`).join('');
+}
+
+// Stop UID polling when leaving the register page
+const _origShowPage = showPage;
+
+// ── Initial load on page open ─────────────────────────────────
+loadInventory();
+loadTransactions();
+loadUsers();
+loadLogs();
+loadOverdue();
+</script>
+</body>
+</html>
